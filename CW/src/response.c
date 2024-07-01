@@ -64,14 +64,18 @@ void send_response(int client, const char *header, const char *body)
   send(client, "\r\n", 2, 0);
 }
 
-void get_auth_response(const char *auth_type, char *result, size_t result_max_digest)
+void get_auth_response(const char *auth_type,
+                       char *result,
+                       size_t result_max_digest,
+                       const int client_id,
+                       int stale)
 {
   if (strcmp(auth_type, "Digest") == 0)
   {
     char digest[MAX_DIGEST];
-    get_digest(digest, MAX_DIGEST);
+    get_digest(digest, MAX_DIGEST, client_id);
 
-    snprintf(result, result_max_digest, "WWW-Authenticate: %s\r\n", digest);
+    snprintf(result, result_max_digest, "WWW-Authenticate: %s, stale=%s\r\n", digest, stale ? "true" : "false");
   }
   else
   {
@@ -79,7 +83,9 @@ void get_auth_response(const char *auth_type, char *result, size_t result_max_di
   }
 }
 
-const char *get_digest(char *result, size_t max_length)
+const char *get_digest(char *result,
+                       size_t max_length,
+                       const int client_id)
 {
   digest_t digest;
   if (digest_init(&digest) == -1)
@@ -91,12 +97,9 @@ const char *get_digest(char *result, size_t max_length)
   digest_set_attr(&digest, D_ATTR_REALM, (digest_attr_value_t)AUTH_REALM);
   digest_set_attr(&digest, D_ATTR_ALGORITHM, (digest_attr_value_t)DIGEST_ALGORITHM_MD5);
 
-  char nonce[128], opaque[128];
-  generate_nonce_opaque(&digest, nonce, opaque);
-
-  digest_set_attr(&digest, D_ATTR_NONCE, (digest_attr_value_t)nonce);
+  digest_set_attr(&digest, D_ATTR_NONCE, (digest_attr_value_t)client_info[client_id].nonce);
   digest_set_attr(&digest, D_ATTR_QOP, (digest_attr_value_t)DIGEST_QOP_AUTH);
-  digest_set_attr(&digest, D_ATTR_OPAQUE, (digest_attr_value_t)opaque);
+  digest_set_attr(&digest, D_ATTR_OPAQUE, (digest_attr_value_t)client_info[client_id].opaque);
 
   generate_digest_header(&digest, result, max_length);
 

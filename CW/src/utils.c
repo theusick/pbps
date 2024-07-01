@@ -6,6 +6,7 @@
 #include <openssl/sha.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 #include <openssl/buffer.h>
 
 static const unsigned char base64_table[65] =
@@ -145,6 +146,16 @@ unsigned char *base64_encode(const unsigned char *src, size_t len, size_t *out_l
   if (out_len)
     *out_len = pos - out;
   return out;
+}
+
+void generate_sha256(char *result, size_t size)
+{
+  unsigned char random_bytes[SHA256_DIGEST_LENGTH];
+  RAND_bytes(random_bytes, sizeof(random_bytes));
+  for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+  {
+    sprintf(&result[i * 2], "%02x", random_bytes[i]);
+  }
 }
 
 const int str_to_int_hex(const char *str)

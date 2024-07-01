@@ -15,6 +15,8 @@ unsigned char *base64_decode(const unsigned char *src, size_t len,
 unsigned char *base64_encode(const unsigned char *src, size_t len,
                              size_t *out_len);
 
+void generate_sha256(char *result, size_t size);
+
 const int str_to_int_hex(const char *str);
 
 char *crop_sentence(const char *header_value);

@@ -242,13 +242,66 @@ const int handle_digest_auth(int client, const char *auth_data, int client_id, c
     return 0;
   }
 
+  // Extract nonce and opaque from auth_data
+  char received_nonce[SHA256_DIGEST_LENGTH * 2 + 1];
+  char received_opaque[SHA256_DIGEST_LENGTH * 2 + 1];
+  char received_nc[9] = {0};
+
+  const char *nonce_pos = strstr(auth_data, "nonce=\"");
+  if (nonce_pos)
+  {
+    nonce_pos += 7;
+    sscanf(nonce_pos, "%64[^\"]", received_nonce);
+  }
+  const char *opaque_pos = strstr(auth_data, "opaque=\"");
+  if (opaque_pos)
+  {
+    opaque_pos += 8;
+    sscanf(opaque_pos, "%64[^\"]", received_opaque);
+  }
+
+  const char *nc_pos = strstr(auth_data, "nc=");
+  if (nc_pos)
+  {
+    nc_pos += 3;
+    sscanf(nc_pos, "%8[0-9a-fA-F]", received_nc);
+  }
+
+  unsigned int nc = 0;
+  sscanf(received_nc, "%x", &nc);
+
+  if ((strcmp(received_nonce, client_info[client_id].nonce) != 0) ||
+      (strcmp(received_opaque, client_info[client_id].opaque) != 0) ||
+      (nc <= client_info[client_id].nc))
+  {
+    char auth_body[MAX_DIGEST + 18];
+    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 0);
+    send_response(client, HTTP_401, auth_body);
+
+    printf("Client '%d' 401 Unauthorized (invalid nonce, opaque or nc).\n", client_id);
+    return 0;
+  }
+
+  time_t current_time = time(NULL);
+  if (difftime(current_time, client_info[client_id].nonce_generation_time) > DIGEST_NONCE_LIFETIME)
+  {
+    char auth_body[MAX_DIGEST + 40];
+    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 0);
+    send_response(client, HTTP_401, auth_body);
+
+    printf("Client '%d' 401 Unauthorized (nonce expired).\n", client_id);
+    return 0;
+  }
+
+  client_info[client_id].nc = nc;
+
   if (authenticate_digest(auth_data) == 0)
   {
     auth_status[client_id].attempts++;
     auth_status[client_id].last_attempt = time(NULL);
 
     char auth_body[MAX_DIGEST + 18];
-    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18);
+    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 0);
     send_response(client, HTTP_401, auth_body);
 
     printf("Client '%d' 401 Unauthorized. Attempt: %d\n", client_id, auth_status[client_id].attempts);
@@ -291,7 +344,7 @@ const int handle_basic_auth(int client, const char *auth_data, int client_id, ch
     auth_status[client_id].last_attempt = current_time;
 
     char auth_body[MAX_DIGEST + 18];
-    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18);
+    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 0);
     send_response(client, HTTP_401, auth_body);
 
     printf("Client '%d' 401 Unauthorized. Attempt: %d\n", client_id, auth_status[client_id].attempts);
@@ -308,8 +361,14 @@ const int handle_auth(int client, const char *auth_data, int client_id, char *au
 {
   if (auth_data == NULL)
   {
+    // Generate and store nonce and opaque for the client
+    generate_sha256(client_info[client_id].nonce, sizeof(client_info[client_id].nonce));
+    generate_sha256(client_info[client_id].opaque, sizeof(client_info[client_id].opaque));
+
+    client_info[client_id].nonce_generation_time = time(NULL);
+
     char auth_body[MAX_DIGEST + 18];
-    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18);
+    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 0);
     send_response(client, HTTP_401, auth_body);
     return 0;
   }
@@ -321,35 +380,5 @@ const int handle_auth(int client, const char *auth_data, int client_id, char *au
   else
   {
     return handle_basic_auth(client, auth_data, client_id, auth_type);
-  }
-}
-
-void generate_nonce_opaque(digest_t *digest, char *nonce, char *opaque)
-{
-  unsigned char hash[SHA256_DIGEST_LENGTH];
-  char input[256];
-  time_t t;
-
-  // Generate a base input string
-  srand((unsigned)time(&t));
-  snprintf(input, sizeof(input), "%lu%lu", t, rand());
-
-  if (digest->algorithm == DIGEST_ALGORITHM_MD5)
-  {
-    MD5((unsigned char *)input, strlen(input), hash);
-    for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
-    {
-      snprintf(&(nonce[i * 2]), 16 * 2, "%02x", (unsigned int)hash[i]);
-      snprintf(&(opaque[i * 2]), 16 * 2, "%02x", (unsigned int)hash[i]);
-    }
-  }
-  else if (digest->algorithm == DIGEST_ALGORITHM_SHA256)
-  {
-    SHA256((unsigned char *)input, strlen(input), hash);
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
-    {
-      snprintf(&(nonce[i * 2]), 32 * 2, "%02x", (unsigned int)hash[i]);
-      snprintf(&(opaque[i * 2]), 32 * 2, "%02x", (unsigned int)hash[i]);
-    }
   }
 }

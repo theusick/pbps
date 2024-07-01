@@ -13,6 +13,7 @@
 
 #define AUTH_REALM "people@test-ldap.ru"
 #define AUTH_TYPE_LEN 64
+#define DIGEST_NONCE_LIFETIME 30
 #define MAX_ATTEMPTS 3
 #define TIMEOUT 30
 
