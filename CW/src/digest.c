@@ -12,7 +12,7 @@ const int digest_init(digest_t *digest)
 {
   digest_s *dig = (digest_s *)digest;
 
-  /* Clear */
+  // Clear
   memset(dig, 0, sizeof(digest_s));
 
   dig->algorithm = DIGEST_ALGORITHM_MD5;

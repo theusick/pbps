@@ -1,6 +1,7 @@
 #include "response.h"
 #include "config.h"
 #include "digest.h"
+#include "auth.h"
 #include "http_responses.h"
 
 #include <stdio.h>
@@ -89,9 +90,13 @@ const char *get_digest(char *result, size_t max_length)
 
   digest_set_attr(&digest, D_ATTR_REALM, (digest_attr_value_t)AUTH_REALM);
   digest_set_attr(&digest, D_ATTR_ALGORITHM, (digest_attr_value_t)DIGEST_ALGORITHM_MD5);
-  digest_set_attr(&digest, D_ATTR_NONCE, (digest_attr_value_t) "123124123");
+
+  char nonce[128], opaque[128];
+  generate_nonce_opaque(&digest, nonce, opaque);
+
+  digest_set_attr(&digest, D_ATTR_NONCE, (digest_attr_value_t)nonce);
   digest_set_attr(&digest, D_ATTR_QOP, (digest_attr_value_t)DIGEST_QOP_AUTH);
-  digest_set_attr(&digest, D_ATTR_OPAQUE, (digest_attr_value_t) "121323123123");
+  digest_set_attr(&digest, D_ATTR_OPAQUE, (digest_attr_value_t)opaque);
 
   generate_digest_header(&digest, result, max_length);
 

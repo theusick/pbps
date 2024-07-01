@@ -150,7 +150,13 @@ int authenticate_digest(const char *auth_header)
     sprintf(&ha2_hex[i * 2], "%02x", ha2[i]);
 
   char final_string[512];
-  snprintf(final_string, sizeof(final_string), "%s:%s:%s:%s:%s:%s", ha1_hex, digest.nonce, nc_str, digest.cnonce, qop_value, ha2_hex);
+  snprintf(final_string, sizeof(final_string), "%s:%s:%s:%s:%s:%s",
+           ha1_hex,
+           digest.nonce,
+           nc_str,
+           digest.cnonce,
+           qop_value,
+           ha2_hex);
 
   MD5_Init(&md5_ctx);
   MD5_Update(&md5_ctx, final_string, strlen(final_string));
