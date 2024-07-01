@@ -97,7 +97,13 @@ authRealm: people@$LDAP_FULL_DOMAIN
 userPasswordMD5: $(echo -n $USER_PASSWORD | base64)
 EOL
 
-echo "LDAP_BIND_PASS=$LDAP_ADMIN_PASSWORD" >> ./config/server.conf
+config_path="./config/server.conf"
+
+if [ -f "$config_path" ]; then
+    sed -i '/^LDAP_BIND_PASS=/d' "$config_path"
+
+    echo "LDAP_BIND_PASS=$LDAP_ADMIN_PASSWORD" >> "$config_path"
+fi
 
 if [ $? -eq 0 ]; then
     echo "LDAP сервер инициализирован и пользователь добавлен."
