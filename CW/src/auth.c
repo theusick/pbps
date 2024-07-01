@@ -275,8 +275,10 @@ const int handle_digest_auth(int client, const char *auth_data, int client_id, c
       (nc <= client_info[client_id].nc))
   {
     char auth_body[MAX_DIGEST + 18];
-    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 0);
+    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 1);
     send_response(client, HTTP_401, auth_body);
+
+    client_info[client_id].nc = 0;
 
     printf("Client '%d' 401 Unauthorized (invalid nonce, opaque or nc).\n", client_id);
     return 0;
@@ -286,8 +288,11 @@ const int handle_digest_auth(int client, const char *auth_data, int client_id, c
   if (difftime(current_time, client_info[client_id].nonce_generation_time) > DIGEST_NONCE_LIFETIME)
   {
     char auth_body[MAX_DIGEST + 40];
-    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 0);
+    get_auth_response(auth_type, auth_body, MAX_DIGEST + 18, client_id, 1);
     send_response(client, HTTP_401, auth_body);
+
+    client_info[client_id].nc = 0;
+    client_info[client_id].nonce_generation_time = time(NULL);
 
     printf("Client '%d' 401 Unauthorized (nonce expired).\n", client_id);
     return 0;
