@@ -1,0 +1,4 @@
+dn: cn=schema,cn=config
+changetype: modify
+add: olcObjectClasses
+olcObjectClasses: ( 1.2.840.113556.1.4.8000 NAME 'customObject' DESC 'Custom ObjectClass with authRealm and userPasswordMD5' AUXILIARY MAY ( authRealm $ userPasswordMD5 ) )
